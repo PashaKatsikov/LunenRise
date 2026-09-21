@@ -1,0 +1,26 @@
+name: lumenrise
+description: Lumen Rise — raise a tower of light.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  audioplayers: ^6.5.1
+  shared_preferences: ^2.5.3
+  webview_flutter: ^4.13.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/Lumen_Rise_additional_assets/
+    - assets/Lumen_Rise_gameplay_assets/
+    - assets/Lumen_Rise_sounds_assets/
