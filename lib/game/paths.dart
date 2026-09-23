@@ -11,8 +11,8 @@ class Paths {
   static const bgHigh =
       'assets/Lumen_Rise_gameplay_assets/Upper_Zone_Background_asset.webp';
 
-  static const privacy = 'https://lumenrise.online/privacy-policy.html';
-  static const support = 'https://lumenrise.online/support.html';
+  static const privacy = 'https://lumenrise.link/privacy-policy';
+  static const support = 'https://lumenrise.link/support';
 }
 
 class SfxFile {
