@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "808551333771",
+    "project_id": "lumenrise-cc96c",
+    "storage_bucket": "lumenrise-cc96c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:808551333771:android:284e915b861b94103fb98e",
+        "android_client_info": {
+          "package_name": "com.lumenrise.lumenrisegame"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAovTegJleK8wUZ02PJTn9KT1RQMv4E-R0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -28,6 +28,15 @@ class Sfx {
     HapticFeedback.lightImpact();
   }
 
+  Future<void> prime() async {
+    for (final AudioPlayer p in _pool) {
+      try {
+        await p.setReleaseMode(ReleaseMode.stop);
+        await p.setVolume(volume.clamp(0, 1));
+      } catch (_) {}
+    }
+  }
+
   Future<void> dispose() async {
     for (final p in _pool) {
       await p.dispose();

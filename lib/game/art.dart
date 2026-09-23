@@ -18,6 +18,14 @@ class Art {
 
   static ui.Image file(String path) => _img[path]!;
 
+  static void drop() {
+    final Set<ui.Image> seen = <ui.Image>{};
+    for (final ui.Image img in _img.values) {
+      if (seen.add(img)) img.dispose();
+    }
+    _img.clear();
+  }
+
   static Future<void> load(void Function(double p) onProg) async {
     final paths = <String>[
       ...Atlas.sheets.values,

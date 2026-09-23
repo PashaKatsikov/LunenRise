@@ -1,10 +1,10 @@
 name: lumenrise
-description: Lumen Rise — raise a tower of light.
+description: Lumen Rise — a tower of lamps, with a separate launch fork.
 publish_to: "none"
-version: 1.0.0+1
+version: 1.3.0+5
 
 environment:
-  sdk: ^3.12.2
+  sdk: ">=3.8.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -12,6 +12,16 @@ dependencies:
   audioplayers: ^6.5.1
   shared_preferences: ^2.5.3
   webview_flutter: ^4.13.0
+  webview_flutter_android: ^4.10.1
+  connectivity_plus: ^6.1.2
+  appsflyer_sdk: ^6.16.21
+  firebase_core: ^3.15.2
+  firebase_messaging: ^15.2.10
+  firebase_app_check: ^0.3.2+10
+  flutter_local_notifications: ^19.4.0
+  dio: ^5.9.0
+  pointycastle: ^4.0.0
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

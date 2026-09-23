@@ -47,6 +47,7 @@ android/local.properties
 android/key.properties
 *.jks
 *.keystore
+tool/relay.secret
 /release/
 _shot*
 _s_*
