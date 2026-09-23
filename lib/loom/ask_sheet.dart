@@ -85,7 +85,7 @@ class _AskSheetState extends State<AskSheet> {
                 ),
                 SizedBox(height: landscape ? 16 : 24),
                 Text(
-                  'RING THE TOWER BELL',
+                  'ALLOW NOTIFICATIONS ABOUT BONUSES AND PROMOS',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: const Color(0xFFF7F3FF),
@@ -96,7 +96,7 @@ class _AskSheetState extends State<AskSheet> {
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  'A short note when something on the terrace is worth seeing.',
+                  'Stay tuned for special offers and rewards',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Color(0xFFC9B7E8),

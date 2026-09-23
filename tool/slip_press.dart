@@ -113,9 +113,36 @@ const String _liftScript = r'''
     }
     return null;
   }
+  function scroller(node) {
+    var up = node.parentElement;
+    while (up && up !== document.body && up !== document.documentElement) {
+      var st = getComputedStyle(up);
+      var oy = st.overflowY;
+      if ((oy === 'auto' || oy === 'scroll') && up.scrollHeight > up.clientHeight + 1) {
+        return up;
+      }
+      up = up.parentElement;
+    }
+    return null;
+  }
+  // Keyboard top edge in client px. visualViewport reflects the IME straight
+  // away and never reports a taller keyboard than the real one, so the field
+  // is placed at its final seat in one pass instead of chasing the animating
+  // platform inset (which caused the over-shoot then settle).
   function keysTop() {
+    var vv = window.visualViewport;
+    if (vv) {
+      var occ = window.innerHeight - (vv.height + vv.offsetTop);
+      if (occ > 1) { return window.innerHeight - occ; }
+    }
     var p = state.part > LIMIT ? LIMIT : state.part;
-    return window.innerHeight * (1 - p);
+    if (p > 0) { return window.innerHeight * (1 - p); }
+    return window.innerHeight;
+  }
+  function open() {
+    var vv = window.visualViewport;
+    if (vv && vv.height < window.innerHeight - 1) { return true; }
+    return state.part > 0;
   }
   function clear() {
     if (state.shell) { state.shell.style.transform = state.base; }
@@ -131,38 +158,61 @@ const String _liftScript = r'''
   }
   function settle() {
     var node = focusNode();
-    if (!node || !(state.part > 0)) { clear(); return; }
+    if (!node || !open()) { clear(); return; }
 
-    var shell = fixedShell(node);
     var top = keysTop();
-    if (!shell) {
-      clear();
-      var under = node.getBoundingClientRect().bottom + gapPx() - top;
-      if (under > SLACK) { window.scrollBy(0, under); }
+    var shell = fixedShell(node);
+    if (shell) {
+      if (shell !== state.shell) {
+        clear();
+        state.shell = shell;
+        state.base = shell.style.transform || '';
+      }
+      var rest = node.getBoundingClientRect().bottom + state.lift;
+      var need = rest + gapPx() - top;
+      move(need > SLACK ? need : 0);
       return;
     }
-    if (shell !== state.shell) {
-      clear();
-      state.shell = shell;
-      state.base = shell.style.transform || '';
+
+    // Non-fixed field: drop any held transform and move the owning scroller
+    // (or the page) to the exact seat in one write. The delta is signed, so a
+    // field the browser pushed too high is brought back down on the same pass.
+    clear();
+    var delta = node.getBoundingClientRect().bottom + gapPx() - top;
+    if (delta < 0 && delta > -SLACK) { return; }
+    if (delta > 0 && delta <= SLACK) { return; }
+    var sc = scroller(node);
+    if (sc) {
+      sc.scrollTop += delta;
+    } else {
+      var doc = document.scrollingElement || document.documentElement;
+      doc.scrollTop += delta;
     }
-    var rest = node.getBoundingClientRect().bottom + state.lift;
-    var need = rest + gapPx() - top;
-    move(need > SLACK ? need : 0);
   }
   function plan() {
     if (frame) { return; }
     frame = requestAnimationFrame(function () { frame = 0; settle(); });
   }
-  function replan() {
-    plan();
+  // On focus the browser runs its own scroll-into-view. Pin the scroll where
+  // it was, restore it on the next frame, then seat the field ourselves — so
+  // there is no jump-then-correct, whether the keyboard is opening or already
+  // up and the user taps a different field.
+  function onFocusIn() {
+    var node = focusNode();
+    if (!node) { return; }
+    var pin = scroller(node) || document.scrollingElement || document.documentElement;
+    var at = pin.scrollTop;
+    requestAnimationFrame(function () {
+      if (pin.scrollTop !== at) { pin.scrollTop = at; }
+      settle();
+    });
     setTimeout(plan, 120);
     setTimeout(plan, 320);
   }
 
   function nudge(value) {
     state.part = value > 0 ? value : 0;
-    if (!(state.part > 0)) {
+    if (!open()) {
       if (frame) { cancelAnimationFrame(frame); frame = 0; }
       clear();
       return;
@@ -172,7 +222,7 @@ const String _liftScript = r'''
   nudge.live = 1;
   window[MARK] = nudge;
 
-  document.addEventListener('focusin', replan, true);
+  document.addEventListener('focusin', onFocusIn, true);
   document.addEventListener('focusout', function () { setTimeout(plan, 0); }, true);
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', plan);

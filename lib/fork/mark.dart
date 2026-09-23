@@ -47,7 +47,9 @@ final class HushArrival extends Arrival {
   final bool backToTable;
 }
 
-/// Body the upstream answers with. Field names are ours.
+/// Body the upstream answers with. The relay forwards the partner
+/// config verbatim, so the wire keys are the config's own:
+/// `{ ok, url, expires, message }`. The class field names stay ours.
 class Verdict {
   const Verdict({
     required this.pass,
@@ -58,10 +60,10 @@ class Verdict {
 
   factory Verdict.fromJson(Map<String, dynamic> json) {
     return Verdict(
-      pass: json['pass'] == true,
-      dest: _text(json['dest']),
-      until: _epoch(json['until']),
-      note: json['note']?.toString(),
+      pass: json['ok'] == true,
+      dest: _text(json['url']),
+      until: _epoch(json['expires']),
+      note: json['message']?.toString(),
     );
   }
 

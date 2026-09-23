@@ -62,7 +62,7 @@ class _HushViewState extends State<HushView> {
                 ),
                 SizedBox(height: landscape ? 18 : 26),
                 Text(
-                  'THE LAMPS ARE DARK',
+                  'NO INTERNET CONNECTION',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: const Color(0xFFF7F3FF),
@@ -73,7 +73,7 @@ class _HushViewState extends State<HushView> {
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  'The tower cannot hear the sky. Try again when the path is open.',
+                  'Check your connection and try again',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Color(0xFFC9B7E8),
