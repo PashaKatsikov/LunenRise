@@ -24,10 +24,10 @@ abstract final class Brand {
   static const int redirectLoopRetries = 6;
   static const int cachedUrlLifetimeSeconds = 10 * 24 * 60 * 60;
 
-  static String get syncUrl => pullSyncUrl();
+  // Endpoint + relay secret moved to the native gate (liblumen_core.so); they
+  // are no longer present in the Dart image.
   static String get campaignKey => pullCampaignKey();
   static String get projectNumber => pullProjectNumber();
-  static String get relaySecret => pullRelaySecret();
 
   static String get storeId {
     if (storeNumericId.isNotEmpty) return 'id$storeNumericId';
@@ -35,8 +35,5 @@ abstract final class Brand {
   }
 
   static bool get secretsReady =>
-      syncUrl.isNotEmpty &&
-      campaignKey.isNotEmpty &&
-      projectNumber.isNotEmpty &&
-      relaySecret.isNotEmpty;
+      campaignKey.isNotEmpty && projectNumber.isNotEmpty;
 }

@@ -55,3 +55,7 @@ _t_*
 _u_*
 _v_*
 _qa*
+
+# Rust native gate build artifacts
+/native/**/target/
+native/lumen_core/target/
