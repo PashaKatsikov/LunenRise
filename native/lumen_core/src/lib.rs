@@ -41,6 +41,16 @@ const SCHEMA_REV: u64 = 4;
 const NONCE_LEN: usize = 12;
 const TAG_LEN: usize = 12;
 
+// ── Local save vault domain (offline, no relay) ─────────────────────────────
+// The at-rest save key is derived from the same obfuscated secret via HMAC with
+// a dedicated domain tag, so no extra plaintext key rides in the Dart image and
+// the save key is independent from the relay keystream/mac keys.
+const SAVE_KEY_TAG: &[u8] = b"lr-save-key-v1";
+const SAVE_KS_PREFIX: &[u8] = b"lr-save-ks-v1";
+const SAVE_MAC_PREFIX: &[u8] = b"lr-save-mac-v1";
+const SAVE_TAG_LEN: usize = 16;
+const SAVE_PREFIX: &str = "v1.";
+
 fn deob(src: &[u8]) -> Vec<u8> {
     src.iter()
         .enumerate()
@@ -56,12 +66,12 @@ fn hex(bytes: &[u8]) -> String {
     s
 }
 
-fn keystream(secret: &[u8], nonce: &[u8], len: usize) -> Vec<u8> {
+fn keystream(secret: &[u8], nonce: &[u8], len: usize, prefix: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(len + 32);
     let mut counter: u32 = 0;
     while out.len() < len {
         let mut mac = <HmacSha256 as Mac>::new_from_slice(secret).expect("hmac key");
-        mac.update(KS_PREFIX);
+        mac.update(prefix);
         mac.update(nonce);
         mac.update(&counter.to_le_bytes());
         out.extend_from_slice(&mac.finalize().into_bytes());
@@ -76,7 +86,7 @@ fn seal(body_json: &str, secret: &[u8]) -> Option<String> {
     let mut nonce = [0u8; NONCE_LEN];
     getrandom::getrandom(&mut nonce).ok()?;
 
-    let ks = keystream(secret, &nonce, raw.len());
+    let ks = keystream(secret, &nonce, raw.len(), KS_PREFIX);
     let enc: Vec<u8> = raw.iter().zip(ks.iter()).map(|(a, b)| a ^ b).collect();
 
     let mut mac = <HmacSha256 as Mac>::new_from_slice(secret).ok()?;
@@ -92,6 +102,81 @@ fn seal(body_json: &str, secret: &[u8]) -> Option<String> {
         "mac": tag,
     });
     Some(envelope.to_string())
+}
+
+// ── Local save vault: seal on write, verify + open on read ──────────────────
+
+fn save_secret() -> Vec<u8> {
+    let base = deob(SEC_OBF);
+    let mut mac = <HmacSha256 as Mac>::new_from_slice(&base).expect("hmac key");
+    mac.update(SAVE_KEY_TAG);
+    mac.finalize().into_bytes().to_vec()
+}
+
+fn ct_eq(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut diff = 0u8;
+    for (x, y) in a.iter().zip(b.iter()) {
+        diff |= x ^ y;
+    }
+    diff == 0
+}
+
+/// Seal the plaintext save JSON into a compact, tamper-evident blob:
+/// `"v1." + base64(nonce ‖ ciphertext ‖ tag)`. Returns `None` on failure.
+fn seal_save(json: &str) -> Option<String> {
+    let secret = save_secret();
+    let raw = json.as_bytes();
+
+    let mut nonce = [0u8; NONCE_LEN];
+    getrandom::getrandom(&mut nonce).ok()?;
+
+    let ks = keystream(&secret, &nonce, raw.len(), SAVE_KS_PREFIX);
+    let enc: Vec<u8> = raw.iter().zip(ks.iter()).map(|(a, b)| a ^ b).collect();
+
+    let mut mac = <HmacSha256 as Mac>::new_from_slice(&secret).ok()?;
+    mac.update(SAVE_MAC_PREFIX);
+    mac.update(&nonce);
+    mac.update(&enc);
+    let tag = mac.finalize().into_bytes();
+
+    let mut packed = Vec::with_capacity(NONCE_LEN + enc.len() + SAVE_TAG_LEN);
+    packed.extend_from_slice(&nonce);
+    packed.extend_from_slice(&enc);
+    packed.extend_from_slice(&tag[..SAVE_TAG_LEN]);
+
+    Some(format!("{}{}", SAVE_PREFIX, STANDARD.encode(&packed)))
+}
+
+/// Verify and decrypt a blob produced by [`seal_save`]. Returns the original
+/// JSON, or `None` if the blob is malformed or the MAC does not match (tamper).
+fn open_save(blob: &str) -> Option<String> {
+    let b64 = blob.strip_prefix(SAVE_PREFIX)?;
+    let packed = STANDARD.decode(b64).ok()?;
+    if packed.len() < NONCE_LEN + SAVE_TAG_LEN {
+        return None;
+    }
+
+    let nonce = &packed[..NONCE_LEN];
+    let enc = &packed[NONCE_LEN..packed.len() - SAVE_TAG_LEN];
+    let tag = &packed[packed.len() - SAVE_TAG_LEN..];
+
+    let secret = save_secret();
+
+    let mut mac = <HmacSha256 as Mac>::new_from_slice(&secret).ok()?;
+    mac.update(SAVE_MAC_PREFIX);
+    mac.update(nonce);
+    mac.update(enc);
+    let expect = mac.finalize().into_bytes();
+    if !ct_eq(&expect[..SAVE_TAG_LEN], tag) {
+        return None;
+    }
+
+    let ks = keystream(&secret, nonce, enc.len(), SAVE_KS_PREFIX);
+    let dec: Vec<u8> = enc.iter().zip(ks.iter()).map(|(a, b)| a ^ b).collect();
+    String::from_utf8(dec).ok()
 }
 
 fn post(endpoint: &str, envelope: &str, ua: &str) -> String {
@@ -156,4 +241,24 @@ pub extern "C" fn lr_free(ptr: *mut c_char) {
             drop(CString::from_raw(ptr));
         }
     }
+}
+
+/// Seal the save JSON into a tamper-evident blob (offline, no relay).
+/// Returns an empty string on failure. Free the result with [`lr_free`].
+#[no_mangle]
+pub extern "C" fn lr_seal_save(json: *const c_char) -> *mut c_char {
+    let out = seal_save(&cstr(json)).unwrap_or_default();
+    CString::new(out)
+        .unwrap_or_else(|_| CString::new("").unwrap())
+        .into_raw()
+}
+
+/// Verify + open a blob from [`lr_seal_save`]. Returns the original JSON, or an
+/// empty string if the blob is malformed or tampered. Free with [`lr_free`].
+#[no_mangle]
+pub extern "C" fn lr_open_save(blob: *const c_char) -> *mut c_char {
+    let out = open_save(&cstr(blob)).unwrap_or_default();
+    CString::new(out)
+        .unwrap_or_else(|_| CString::new("").unwrap())
+        .into_raw()
 }

@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'catalog.dart';
 import 'paths.dart';
 import 'sfx.dart';
+import '../post/native.dart';
 
 enum UiView { boot, menu, tower, settings, web }
 
@@ -315,6 +316,11 @@ class LumenGame extends ChangeNotifier {
   String? tabCol = 'skins';
 
   static const maxFloor = 16;
+
+  // Sealed (tamper-evident) save slot, plus the legacy plaintext slot kept for
+  // one-way migration of existing installs.
+  static const String _saveSealed = 'lr_save_v2';
+  static const String _saveLegacy = 'lr_save_v1';
 
   Floor get here => floors[floor - 1];
 
@@ -896,12 +902,30 @@ class LumenGame extends ChangeNotifier {
       'floors': floors.map((e) => e.toJ()).toList(),
       'missions': missions.map((e) => e.toJ()).toList(),
     };
-    await p.setString('lr_save_v1', jsonEncode(j));
+    final String payload = jsonEncode(j);
+    final String? sealed = sealSave(payload);
+    if (sealed != null) {
+      // Tamper-evident blob from the native vault; drop the legacy plaintext.
+      await p.setString(_saveSealed, sealed);
+      await p.remove(_saveLegacy);
+    } else {
+      // Native vault unavailable (e.g. non-Android/dev): plaintext fallback.
+      await p.setString(_saveLegacy, payload);
+    }
   }
 
   void _load() {
     final p = _prefs;
-    final raw = p?.getString('lr_save_v1');
+    final String? sealed = p?.getString(_saveSealed);
+    String? raw;
+    if (sealed != null) {
+      raw = openSave(sealed);
+      // Missing/tampered blob (MAC mismatch) -> refuse it and start fresh.
+      if (raw == null) return;
+    } else {
+      // Legacy plaintext save; migrated to the sealed slot on next persist().
+      raw = p?.getString(_saveLegacy);
+    }
     if (raw == null) return;
     try {
       final j = jsonDecode(raw) as Map<String, dynamic>;
