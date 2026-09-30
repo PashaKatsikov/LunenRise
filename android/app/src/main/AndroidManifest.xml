@@ -19,6 +19,9 @@
         android:fullBackupContent="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         tools:replace="android:allowBackup,android:fullBackupContent,android:dataExtractionRules">
+        <property
+            android:name="android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY"
+            android:value="true"/>
         <activity
             android:name=".MainActivity"
             android:exported="true"

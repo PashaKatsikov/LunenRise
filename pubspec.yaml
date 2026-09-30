@@ -1,7 +1,7 @@
 name: lumenrise
 description: Lumen Rise — a tower of lamps, with a separate launch fork.
 publish_to: "none"
-version: 1.0.1+3
+version: 1.0.1+4
 
 environment:
   sdk: ">=3.8.0 <4.0.0"

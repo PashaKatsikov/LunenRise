@@ -29,8 +29,8 @@ android {
 
     defaultConfig {
         applicationId = "com.lumenrise.lumenrisegame"
-        minSdk = 26
-        targetSdk = 35
+        minSdk = 24
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
