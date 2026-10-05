@@ -143,6 +143,14 @@ class Decider {
   }
 
   Future<Verdict> _ask({String? token}) async {
+    // Never post before AppsFlyer's conversion callback has fired: an early
+    // body has no af_status (config → 404 → native) and carries an af_id the
+    // AppsFlyer backend hasn't registered yet. Both cause the install's status
+    // to flip within a single session, so hold the request until attribution
+    // is real.
+    if (!campaign.hasInstall) {
+      return Verdict.no('attribution-pending');
+    }
     final String? pushToken = token ?? await chime.awaitToken();
     final Map<String, dynamic> body = await campaign.compose(
       locale: Platform.localeName.replaceAll('-', '_'),
@@ -163,6 +171,14 @@ class Decider {
 
   Future<void> _resendOnToken(String token) async {
     try {
+      // A refreshed FCM token can arrive within a second or two — before the
+      // main launch flow has run campaign.start()/awaitSignals(). Wait for
+      // attribution here too, so the resend never posts ahead of the
+      // conversion callback (empty af_status + unregistered af_id).
+      await campaign.start();
+      await campaign.awaitSignals(
+        installSeconds: Brand.returningInstallAwaitSeconds,
+      );
       await _ask(token: token);
     } catch (_) {}
   }

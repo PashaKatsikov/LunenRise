@@ -20,6 +20,12 @@ class Campaign {
 
   bool _started = false;
 
+  /// True once AppsFlyer's install-conversion callback has fired (success or
+  /// the SDK-fail fallback). Until then the UID isn't final and the body would
+  /// carry no `af_status` — posting early makes the verdict flip and sends an
+  /// `af_id` the AppsFlyer backend hasn't registered yet.
+  bool get hasInstall => _installReady.isCompleted;
+
   Future<void> start() async {
     if (_started) return;
     _started = true;
